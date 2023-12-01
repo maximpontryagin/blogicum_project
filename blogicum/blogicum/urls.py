@@ -12,9 +12,6 @@ User = get_user_model()
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('pages/', include('pages.urls', namespace='pages')),
-    path('', include('blog.urls', namespace='blog')),
-    path('accounts/profile/', include('blog.urls', namespace='blog')),
-    path('accounts/', include('blog.urls', namespace='blog')),
     path('auth/', include('django.contrib.auth.urls')),
     path(
         'auth/registration/',
@@ -25,6 +22,7 @@ urlpatterns = [
         ),
         name='registration',
     ),
+    path('', include('blog.urls', namespace='blog')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
