@@ -9,12 +9,12 @@ from django.views.generic import (
 )
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
-from django.db.models import Count
 
 from blog.models import Post, Category
 from .forms import CommentsForm, PostForm
 from .config import DATETIME_NOW, PAGINATE_POST
-from . mixins import CommentMixin, PostMixin
+from .mixins import CommentMixin, PostMixin
+from .utils import select, anotate
 
 User = get_user_model()
 
@@ -28,11 +28,7 @@ class PostDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentsForm()
-        context['profile'] = Post.objects.select_related(
-            'author', 'location', 'category').filter(
-            is_published=True, pub_date__lte=DATETIME_NOW,
-            category__is_published=True,
-            pk__exact=self.kwargs['post_id'])
+        context['profile'] = select(Post).filter(pk=self.kwargs['post_id'])
         context['comments'] = self.object.comments.select_related('author')
         return context
 
@@ -51,12 +47,8 @@ class CategoryShowView(ListView):
     paginate_by = PAGINATE_POST
 
     def get_queryset(self):
-        return Post.objects.select_related(
-            'author', 'location', 'category').filter(
-            is_published=True, category__is_published=True,
-            category__slug__exact=self.kwargs['category'],
-            pub_date__lte=DATETIME_NOW).prefetch_related('comments').annotate(
-            comment_count=Count('comments')).order_by('-pub_date')
+        return anotate(select(Post).filter(
+            category__slug=self.kwargs['category']))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -70,11 +62,7 @@ class IndexView(ListView):
     paginate_by = PAGINATE_POST
 
     def get_queryset(self):
-        return Post.objects.select_related(
-            'author', 'location', 'category').filter(
-            is_published=True, category__is_published=True,
-            pub_date__lte=DATETIME_NOW).prefetch_related('comments').annotate(
-            comment_count=Count('comments')).order_by('-pub_date')
+        return anotate(select(Post))
 
 
 class ProfileView(ListView):
@@ -90,11 +78,10 @@ class ProfileView(ListView):
     def get_queryset(self):
         user_detail = get_object_or_404(User.objects.all(),
                                         username=self.kwargs['username'])
-        return Post.objects.select_related(
+        return anotate(Post.objects.select_related(
             'author', 'location', 'category').filter(
-            author__exact=user_detail.id).prefetch_related(
-            'comments').annotate(comment_count=Count(
-                'comments')).order_by('-pub_date')
+            author=user_detail.id).prefetch_related(
+            'comments'))
 
 
 class ProfileUpadateView(LoginRequiredMixin, UpdateView):
